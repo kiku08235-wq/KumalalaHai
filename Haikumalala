@@ -1,0 +1,148 @@
+-- Haidz Fling GUI v5 - Dropdown chọn người + fling
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HRP = Character:WaitForChild("HumanoidRootPart")
+
+-- Xóa GUI cũ nếu có
+pcall(function() LocalPlayer.PlayerGui:FindFirstChild("HaidzFlingGui"):Destroy() end)
+
+-- GUI chính
+local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+gui.Name = "HaidzFlingGui"
+gui.ResetOnSpawn = false
+
+-- Frame chính
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 300, 0, 240)
+frame.Position = UDim2.new(0.5, -150, 0.5, -120)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+-- Tiêu đề
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+title.Text = "Haidz Fling"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 22
+
+-- Nút ẩn/hiện GUI
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Size = UDim2.new(0, 100, 0, 30)
+toggleBtn.Position = UDim2.new(0, 10, 0, 10)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+toggleBtn.Text = "Ẩn Haidz"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.TextSize = 18
+toggleBtn.Active = true
+toggleBtn.Draggable = true
+
+-- Dropdown danh sách người chơi
+local dropdownLabel = Instance.new("TextLabel", frame)
+dropdownLabel.Size = UDim2.new(0.9, 0, 0, 25)
+dropdownLabel.Position = UDim2.new(0.05, 0, 0.2, 0)
+dropdownLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+dropdownLabel.Text = "Chọn người chơi"
+dropdownLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+dropdownLabel.Font = Enum.Font.SourceSans
+dropdownLabel.TextSize = 18
+
+local dropdown = Instance.new("ScrollingFrame", frame)
+dropdown.Size = UDim2.new(0.9, 0, 0, 80)
+dropdown.Position = UDim2.new(0.05, 0, 0.35, 0)
+dropdown.CanvasSize = UDim2.new(0, 0, 0, 0)
+dropdown.ScrollBarThickness = 4
+dropdown.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+dropdown.BorderSizePixel = 0
+
+local selectedPlayer = nil
+
+-- Nút FLING
+local flingBtn = Instance.new("TextButton", frame)
+flingBtn.Size = UDim2.new(0.9, 0, 0, 40)
+flingBtn.Position = UDim2.new(0.05, 0, 0.75, 0)
+flingBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+flingBtn.Text = "FLING"
+flingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+flingBtn.Font = Enum.Font.SourceSansBold
+flingBtn.TextSize = 20
+
+-- Tạo nút chọn người chơi
+local function refreshDropdown()
+	dropdown:ClearAllChildren()
+	local yPos = 0
+	for _, p in pairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			local btn = Instance.new("TextButton", dropdown)
+			btn.Size = UDim2.new(1, 0, 0, 25)
+			btn.Position = UDim2.new(0, 0, 0, yPos)
+			btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			btn.Text = p.Name
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			btn.Font = Enum.Font.SourceSans
+			btn.TextSize = 18
+
+			btn.MouseButton1Click:Connect(function()
+				selectedPlayer = p
+				dropdownLabel.Text = "Đã chọn: " .. p.Name
+			end)
+
+			yPos += 25
+		end
+	end
+	dropdown.CanvasSize = UDim2.new(0, 0, 0, yPos)
+end
+
+-- Gọi lại khi người chơi vào / rời
+Players.PlayerAdded:Connect(refreshDropdown)
+Players.PlayerRemoving:Connect(refreshDropdown)
+
+refreshDropdown()
+
+-- Fling chính xác
+local function spinFling(targetHRP)
+	local angular = Instance.new("BodyAngularVelocity")
+	angular.AngularVelocity = Vector3.new(0, 50, 0)
+	angular.MaxTorque = Vector3.new(0, math.huge, 0)
+	angular.P = math.huge
+	angular.Parent = HRP
+
+	local spinning = true
+	local connection
+	connection = RunService.Heartbeat:Connect(function()
+		if targetHRP and spinning then
+			HRP.CFrame = targetHRP.CFrame * CFrame.new(3, 0, 0)
+		else
+			connection:Disconnect()
+		end
+	end)
+
+	task.delay(2.5, function()
+		spinning = false
+		angular:Destroy()
+	end)
+end
+
+-- Khi bấm FLING
+flingBtn.MouseButton1Click:Connect(function()
+	if selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local targetHRP = selectedPlayer.Character.HumanoidRootPart
+		HRP.CFrame = targetHRP.CFrame * CFrame.new(5, 0, 0)
+		wait(0.2)
+		spinFling(targetHRP)
+	else
+		dropdownLabel.Text = "⚠ Không tìm thấy player"
+	end
+end)
+
+-- Ẩn / hiện GUI
+toggleBtn.MouseButton1Click:Connect(function()
+	frame.Visible = not frame.Visible
+	toggleBtn.Text = frame.Visible and "Ẩn Haidz" or "Hiện Haidz"
+end)
